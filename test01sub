@@ -1,0 +1,11 @@
+#!/bin/bash
+alice$_xixix -c <<< "mlkjmlklkjlkmlkjvdOIIJùàç_àçijàçjJPOPO,,::;,:;,:;," |
+bob$_xixix -d
+
+alice$_xixix -b
+
+bob$_xixix -b 2>&1
+
+bob$_xixix -p 2>&1
+
+bob$_xixix -a 2>&1

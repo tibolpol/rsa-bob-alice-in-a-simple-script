@@ -1,5 +1,3 @@
-# RSA Bob + Alice dans un simple script
-```
 bob_xirap(1)                                            bob_xirap(1)
 
 NOM
@@ -73,15 +71,3 @@ VOIR AUSSI
         ssh-keygen(1) openssl-pkeyutl(1) mcrypt(1)
 
 bob_xirap(1)                                            bob_xirap(1)
-```
-# Mode d'emploi
-
-Télécharger le script et lancer `bob_xirap -n` pour créer `alice` avec sa propre clé privée.
-
-Selon ses préférences, renommer les scripts obtenus, par exemple `alice_myname` et `bob_myname` en respectant la nomenclature : `bob` implémente la clé publique, `alice` implémente la clé privée, suivi du caractère `_` et d'un nom significatif de la clé privée.
-
-Il est aussi suggéré d'éditer le script `alice` et d'y insérer une clé privée existante de son choix, puis de regénérer `bob`.
-
-Les interlocuteurs ayant reçu une copie de `bob` peuvent déchiffrer/vérifier les messages de `alice`, et chiffrer des messages exclusivement destinés à `alice`.
-
-Ils peuvent également générer leur propre `alice` et distribuer à leur tour une copie de `bob`.

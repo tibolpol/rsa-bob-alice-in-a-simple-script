@@ -1,0 +1,248 @@
+#!/bin/bash
+mydir=$(dirname "$0")
+myname=$(basename "$0")
+IFS=_ read alice name <<< $myname
+myexit(){
+  rc=$1;shift
+  echo $myname rc=$rc - $* >&2
+  exit $rc
+}
+_(){ TEXTDOMAIN=beyn TEXTDOMAINDIR="$(readlink -f "$mydir/locale")" gettext "$1"; }
+
+while (( $# > 0 ));do #{
+zis=$1;shift
+if   [[ $zis == -h ]];then
+#
+# Option -h (help)
+#
+fmt -s <<END
+$myname(1)                                            $myname(1)
+
+$(_ "NOM")
+        $myname -  $(_ "Échange de messages chiffrés basé sur") RSA.
+
+$(_ "SYNOPSIS")
+        alice_$name -h | -c | -d | -n | -b | -p | -a [command args ... ]
+        bob_$name   -h | -c | -d | -n
+
+$(_ "DESCRIPTION")
+        $(_ "Échange de messages chiffrés basé sur") RSA.
+
+        $(_ "Le présent script se nomme") $myname $(_ "formé du radical") "$alice" $(_ "et de") "$name" $(_ "distinctif de la clé").
+
+        Alice $(_ "peut signer et déchiffrer"), Bob $(_ "peut vérifier et chiffrer").
+
+        $(_ "Si le message est inférieur à 49 octets, le chiffré est du texte manipulable, sinon le chiffré est binaire").
+
+$(_ "OPTIONS")
+        -h
+            $(_ "Aide")
+
+        -b
+            $(_ "Générer") Bob
+
+        -c
+            $(_ "Chiffrer ou signer l'entrée standard").
+
+        -d
+            $(_ "Déchiffrer ou vérifier l'entrée standard").
+
+            $(_ "Exemples") :
+
+            $(_ "Signer un message avec") Alice $(_ "et le vérifier avec") Bob :
+
+            [message] | alice_$name -c | bob_$name -d
+
+            $(_ "Chiffrer un message avec") Bob $(_ "et le déchiffrer avec") Alice :
+
+            [message] | bob_$name -c | alice_$name -d
+
+        -a  [command args ...]
+            $(_ "Ouvrir la clé privée") Alice $(_ "et l'utiliser dans un sous-shell sans devoir saisir à nouveau la") passphrase.
+
+            $(_ "Exemple") :
+
+            alice_$name -a # passphrase $(_ "demandée")
+            alice_$name -d # passphrase $(_ "non demandée")
+            logout # $(_ "Sortie du sous-shell")
+            alice_$name -d # passphrase $(_ "demandée")
+
+        -p
+            $(_ "Changer la") passphrase $(_ "de") Alice
+
+        -n
+            $(_ "Générer") Alice $(_ "et") Bob $(_ "avec une nouvelle clé privée et le distinctif formé du premier mot du") digest.
+
+
+$(_ "STATUT FINAL")
+        0 SUCCESS
+            $(_ "Succès").
+
+        4 ERROR
+            $(_ "Une erreur est signalée").
+
+$(_ "VOIR AUSSI")
+        ssh-keygen(1) openssl-pkeyutl(1) mcrypt(1)
+
+$myname(1)                                            $myname(1)
+END
+exit
+
+elif [[ $zis == -a ]];then
+  arg+=("$zis")
+  if (( $# )) ; then
+    command+=("$@")
+    shift $#
+  else
+    command+=("bash")
+  fi
+
+else
+  arg+=("$zis")
+fi
+done #}
+
+tmp=$(mktemp -d) &&
+trap 'rm -rf $tmp' EXIT
+
+(umask u=rw,g=,o=
+cat <<END >$tmp/mykey
+-----BEGIN RSA PUBLIC KEY-----
+MIIBCgKCAQEAsNoLqmZ8CfQTWUG/FhrXjHjWJ2p0eQJ7ZMFuaVQFnanQiNSM0SnU
+LyxwxzwpFNeQUQWvVhwUjywzihO71jFpbkumTmRIoVxZX6JxNjnxGW5w7gTUVAEg
+nZJdfT23Ldk9LaBW5Egxb3FazP5GAQvJng/NjpNpiXu65B3iYxmeRRVE8/VKOvk2
+LDCi3T9cBEw7H9T/ytcuD1Lf1lo1BADrvILVbt3E277t6tn1ZbaZo3G9uJ+0YBtY
+tOiw3ZW9p9RMRvOcul1b9sSl6nH/t6w+RS4bHdOwh1uodVXMTk9ugAAzvmC7u+hL
+br00rhMhZ8YQbyvG4UttNSWiJKQUcNGgaQIDAQAB
+-----END RSA PUBLIC KEY-----
+END
+)
+
+mycopyscript(){
+  awk '
+  $1" "$4 == "-----BEGIN KEY-----" {sta=1}
+  $1" "$4 == "-----END KEY-----" {
+    while (getline < "'$1'") {
+      print
+      numlines++
+    }
+    sta=0
+    next
+  }
+  sta == 0{print}
+  END{exit(numlines==0)}'
+}
+addpayload() {
+  printf "%5d%5d%5d" $RANDOM $RANDOM $RANDOM # payload
+  cat
+}
+removepayload(){ # payload si + de 245 octets
+  tail -c+16
+}
+mycryptrsa(){ # chiffrement rsa
+  if [[ $alice == alice ]]; then
+    openssl pkeyutl -sign -inkey <(echo "${ALICE_SECRET:-$(
+                  ssh-keygen -f $tmp/mykey -p -m PEM -N "" -q >/dev/null &&
+                  openssl rsa -in $tmp/mykey 2>/dev/null
+                  rm -f $tmp/mykey)}")
+  else
+    openssl pkeyutl -encrypt -pubin -inkey <(
+      openssl rsa -RSAPublicKey_in -in $tmp/mykey -pubout 2>/dev/null)
+  fi | base64 -w344
+}
+mydecryptrsa(){ # déchiffrement rsa
+  base64 -d |
+  if [[ $alice == alice ]]; then
+    openssl pkeyutl -decrypt -inkey <(echo "${ALICE_SECRET:-$(
+                  ssh-keygen -f $tmp/mykey -p -m PEM -N "" -q >/dev/null &&
+                  openssl rsa -in $tmp/mykey 2>/dev/null
+                  rm -f $tmp/mykey)}")
+  else
+    openssl pkeyutl -verifyrecover -pubin -inkey <(
+      openssl rsa -RSAPublicKey_in -in $tmp/mykey -pubout 2>/dev/null)
+  fi
+}
+mycrypt(){ # chiffrement stream
+  head -c1 >$tmp/next
+  if [ -s $tmp/next ];then
+    (cat $tmp/next; cat) |
+    mcrypt -q -f $1
+  fi
+}
+mydecrypt(){ # déchiffrement stream
+  head -c1 >$tmp/next
+  if [ -s $tmp/next ];then
+    (cat $tmp/next; cat) |
+    mdecrypt -q -f $1 # [246-...]
+  fi
+}
+
+if [[ $arg == -n ]];then # crée une nouvelle clé
+rm -f $tmp/mykey
+ssh-keygen -f $tmp/mykey -b 2048 -q -m PEM &&
+DIGEST=$(ssh-keygen -f $tmp/mykey -B | (IFS='[ -]' read P1 P2 P3 && echo $P2 )) &&
+[ ! -f $mydir/alice_$DIGEST ] &&
+(umask u=rw,g=,o= &&
+mycopyscript $tmp/mykey < "$0" > "$mydir/alice_$DIGEST") &&
+chmod u+x   $mydir/alice_$DIGEST &&
+echo $(_ "Le script") $mydir/alice_$DIGEST $(_ "a été généré et doit rester protégé") >&2 &&
+$mydir/alice_$DIGEST -b
+
+elif [[ $arg == -p ]];then # changement de passphrase
+[[ $alice == bob ]] && myexit 8 "$(_ "l'opération $arg n'a pas de sens avec")" Bob
+ssh-keygen -f $tmp/mykey -p -q -m PEM &&
+(umask u=rw,g=,o= &&
+mycopyscript $tmp/mykey < "$0" > "$tmp/$myname") &&
+chmod u+x   $tmp/$myname &&
+echo "$(_ "La passphrase du script") $0 $(_ "a été modifiée")" >&2 &&
+mv          $tmp/$myname $0
+
+elif [[ $arg == -b ]];then # génération de bob
+[[ $alice == bob ]] && myexit 8 "$(_ "l'opération $arg n'a pas de sens avec")" Bob
+mycopyscript <(
+  umask u=rw,g=,o=
+  echo "${ALICE_SECRET:-$(
+    ssh-keygen -f $tmp/mykey -p -m PEM -N "" -q >/dev/null &&
+    openssl rsa -in $tmp/mykey 2>/dev/null
+    rm -f $tmp/mykey
+  )}">$tmp/mykey2 &&
+  ssh-keygen -f $tmp/mykey2 -e -q -m PEM
+  rm -f $tmp/mykey2
+) < "$0" > "${0/alice_/bob_}" &&
+chmod a+rx  ${0/alice_/bob_} &&
+echo "$(_ "Le script") ${0/alice_/bob_} $(_ "a été généré pour être distribué")
+$(_ "Exemples") :
+echo message | $0 -c | ${0/alice_/bob_} -d # sign, verify
+echo message | ${0/alice_/bob_} -c | $0 -d # encrypt, decrypt" >&2
+
+elif [[ $arg == -c ]];then # chiffrement
+echo -n "cipher for $(if [[ $alice == alice ]];then echo bob; else echo alice; fi)_${name}:"
+[[ $alice == bob ]] && lmsg=230 || lmsg=49
+addpayload | (
+  head -c$((lmsg+15)) |
+  tee >(head -c30 > $tmp/pwd) |
+  mycryptrsa       # [1-245]
+  mycrypt $tmp/pwd # [246-...]
+)
+
+elif [[ $arg == -d ]];then # déchiffrement
+read -d ':' && [[ "$REPLY" == "cipher for $myname" ]] || myexit 8 cipher $(_ "inattendu")
+(
+  head -c345 |
+  mydecryptrsa |
+  tee >(head -c30 > $tmp/pwd) # [1-245]
+  mydecrypt $tmp/pwd          # [246-...]
+) | removepayload 
+
+elif [[ $arg == -a ]];then # agent
+[[ $alice == bob ]] && myexit 8 "$(_ "l'opération $arg n'a pas de sens avec")" Bob
+ALICE_SECRET="$(
+  ssh-keygen -f $tmp/mykey -p -m PEM -N "" -q >/dev/null &&
+  openssl rsa -in $tmp/mykey 2>/dev/null
+  rm -rf $tmp
+)" PATH="$PATH:$mydir" TMOUT=300 "${command[@]}"
+
+else
+myexit 8 $(_ "Argument $arg manquant ou incorrect")
+
+fi

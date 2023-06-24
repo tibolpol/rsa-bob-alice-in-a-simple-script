@@ -1,0 +1,76 @@
+#!/bin/bash
+
+mydir="$(dirname "$0")"
+"$mydir/bob_xirap" -h | diff "$0.out.1" - &&
+echo $0.1 OK || echo $0.1 KO
+
+mydir="$(dirname "$0")"
+tmp=$(mktemp -d)
+trap "rm -rf $tmp" EXIT
+cp "$mydir/bob_xirap" "$tmp/"
+
+SSH_ASKPASS_REQUIRE=force SSH_ASKPASS=true "$tmp/bob_xirap" -n |&
+tee >(grep -o -m 1 '_x[a-z]\{4\}' > $tmp/_xixix) |
+sed -e "s|$tmp/|\$tmp/|g" -e "s|\([bobalice]*\)_x[a-z]\{4\}|\1_xixix|g" |
+diff "$0.out.2" - &&
+echo $0.2 OK || echo $0.2 KO
+
+_xixix=$(cat $tmp/_xixix)
+
+$tmp/alice$_xixix -b |&
+sed -e "s|$tmp/|\$tmp/|g" -e "s|\([bobalice]*\)_x[a-z]\{4\}|\1_xixix|g" |
+diff "$0.out.3" - &&
+echo $0.3 OK || echo $0.3 KO
+
+$tmp/alice$_xixix -c < "$0.out.4" |
+$tmp/bob$_xixix -d |
+diff "$0.out.4" - &&
+echo $0.4 OK || echo $0.4 KO
+
+$tmp/bob$_xixix -c < "$0.out.5" |
+$tmp/alice$_xixix -d |
+diff "$0.out.5" - &&
+echo $0.5 OK || echo $0.5 KO
+
+(
+echo -n message_de_longueur_49_______3_________4_________ |
+$tmp/alice$_xixix -c | tee >(wc -c >&2) | tee >(file - >&2) | $tmp/bob$_xixix -d
+) |&
+diff "$0.out.6" - &&
+echo $0.6 OK || echo $0.6 KO
+
+(
+echo -n message_de_longueur_50_______3_________4_________5 |
+$tmp/alice$_xixix -c | tee >(wc -c >&2) | tee >(file - >&2) | $tmp/bob$_xixix -d
+) |&
+diff "$0.out.7" - &&
+echo $0.7 OK || echo $0.7 KO
+
+(
+echo -n message_de_longueur_230______3_________4_________5_________6_________7_________8_________9_________0_________1_________2_________3_________4_________5_________6_________7_________8_________9_________0_________1_________2_________3 |
+$tmp/bob$_xixix -c | tee >(wc -c >&2) | tee >(file - >&2) | $tmp/alice$_xixix -d
+) |&
+diff "$0.out.8" - &&
+echo $0.8 OK || echo $0.8 KO
+
+(
+echo -n message_de_longueur_231______3_________4_________5_________6_________7_________8_________9_________0_________1_________2_________3_________4_________5_________6_________7_________8_________9_________0_________1_________2_________3_ |
+$tmp/bob$_xixix -c | tee >(wc -c >&2) | tee >(file - >&2) | $tmp/alice$_xixix -d
+) |&
+diff "$0.out.9" - &&
+echo $0.9 OK || echo $0.9 KO
+
+SSH_ASKPASS_REQUIRE=force SSH_ASKPASS=${0}askpass $tmp/alice$_xixix -p |&
+sed -e "s|$tmp/|\$tmp/|g" -e "s|\([bobalice]*\)_x[a-z]\{4\}|\1_xixix|g" |
+diff "$0.out.10" - &&
+echo $0.10 OK || echo $0.10 KO
+
+SSH_ASKPASS_REQUIRE=force SSH_ASKPASS=${0}askpass _xixix=$_xixix $tmp/alice$_xixix -a ${0}sub |&
+sed -e "s|$tmp/|\$tmp/|g" -e "s|\([bobalice]*\)_x[a-z]\{4\}|\1_xixix|g" |
+diff $0.out.11 - &&
+echo $0.11 OK || echo $0.11 KO
+
+SSH_ASKPASS_REQUIRE=force SSH_ASKPASS=false PATH="$PATH:$tmp" _xixix=$_xixix ${0}sub |
+sed -e "s|$tmp/|\$tmp/|g" -e "s|\([bobalice]*\)_x[a-z]\{4\}|\1_xixix|g" |
+diff $0.out.12 - &&
+echo $0.12 OK || echo $0.12 KO
