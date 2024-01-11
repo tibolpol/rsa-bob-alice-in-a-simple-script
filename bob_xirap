@@ -22,8 +22,8 @@ $(_ "NOM")
         $myname -  $(_ "Échange de messages chiffrés basé sur") RSA.
 
 $(_ "SYNOPSIS")
-        alice_$name -h | -c | -d | -n | -b | -p | -a [command args ... ]
-        bob_$name   -h | -c | -d | -n
+        alice_$name -h | -c | -d | -n | -l | -b | -p | -a [command args ... ]
+        bob_$name   -h | -c | -d | -n | -l
 
 $(_ "DESCRIPTION")
         $(_ "Échange de messages chiffrés basé sur") RSA.
@@ -66,6 +66,9 @@ $(_ "OPTIONS")
             alice_$name -d # passphrase $(_ "non demandée")
             logout # $(_ "Sortie du sous-shell")
             alice_$name -d # passphrase $(_ "demandée")
+
+        -l
+            $(_ "Empreinte de la clé")
 
         -p
             $(_ "Changer la") passphrase $(_ "de") Alice
@@ -150,6 +153,24 @@ mycryptrsa(){ # chiffrement rsa
       openssl rsa -RSAPublicKey_in -in $tmp/mykey -pubout 2>/dev/null)
   fi | base64 -w344
 }
+myfingerprint(){ # empreinte rsa
+  ssh-keygen -l -E md5 -f <(
+    ssh-keygen -i -m PEM -f <(
+    if [[ $alice == alice ]]; then
+      umask u=rw,g=,o=
+      echo "${ALICE_SECRET:-$(
+        ssh-keygen -p -m PEM -N "" -q -f $tmp/mykey >/dev/null
+        openssl rsa -in $tmp/mykey 2>/dev/null
+        rm -f $tmp/mykey
+      )}">$tmp/mykey2 &&
+      ssh-keygen -e -q -m PEM -f $tmp/mykey2
+      rm -f $tmp/mykey2
+    else
+      cat $tmp/mykey
+    fi
+    )
+  )
+}
 mydecryptrsa(){ # déchiffrement rsa
   base64 -d |
   if [[ $alice == alice ]]; then
@@ -187,6 +208,9 @@ mycopyscript $tmp/mykey < "$0" > "$mydir/alice_$DIGEST") &&
 chmod u+x   $mydir/alice_$DIGEST &&
 echo $(_ "Le script") $mydir/alice_$DIGEST $(_ "a été généré et doit rester protégé") >&2 &&
 $mydir/alice_$DIGEST -b
+
+elif [[ $arg == -l ]];then # empreinte de la clé
+myfingerprint
 
 elif [[ $arg == -p ]];then # changement de passphrase
 [[ $alice == bob ]] && myexit 8 "$(_ "l'opération $arg n'a pas de sens avec")" Bob
@@ -240,7 +264,7 @@ ALICE_SECRET="$(
   ssh-keygen -f $tmp/mykey -p -m PEM -N "" -q >/dev/null &&
   openssl rsa -in $tmp/mykey 2>/dev/null
   rm -rf $tmp
-)" PATH="$PATH:$mydir" TMOUT=300 "${command[@]}"
+)" TMOUT=300 PATH="$(dirname "$0"):$PATH" "${command[@]}"
 
 else
 myexit 8 $(_ "Argument $arg manquant ou incorrect")
