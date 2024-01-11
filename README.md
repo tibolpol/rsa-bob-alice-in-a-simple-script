@@ -6,8 +6,8 @@ NOM
         bob_xirap -  Échange de messages chiffrés basé sur RSA.
 
 SYNOPSIS
-        alice_xirap -h | -c | -d | -n | -b | -p | -a [command args ... ]
-        bob_xirap   -h | -c | -d | -n
+        alice_xirap -h | -c | -d | -n | -l | -b | -p | -a [command args ... ]
+        bob_xirap   -h | -c | -d | -n | -l
 
 DESCRIPTION
         Échange de messages chiffrés basé sur RSA.
@@ -54,6 +54,9 @@ OPTIONS
             logout # Sortie du sous-shell
             alice_xirap -d # passphrase demandée
 
+        -l
+            Empreinte de la clé
+
         -p
             Changer la passphrase de Alice
 
@@ -71,6 +74,8 @@ STATUT FINAL
 
 VOIR AUSSI
         ssh-keygen(1) openssl-pkeyutl(1) mcrypt(1)
+
+  https://github.com/tibolpol/rsa-bob-alice-in-a-simple-script
 
 bob_xirap(1)                                            bob_xirap(1)
 ```

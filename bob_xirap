@@ -1,13 +1,15 @@
 #!/bin/bash
 mydir=$(dirname "$0")
 myname=$(basename "$0")
-IFS=_ read alice name <<< $myname
+IFS=_ read ROLE SUFFIX <<< $myname
 myexit(){
   rc=$1;shift
   echo $myname rc=$rc - $* >&2
   exit $rc
 }
 _(){ TEXTDOMAIN=beyn TEXTDOMAINDIR="$(readlink -f "$mydir/locale")" gettext "$1"; }
+LSIG=49
+LCYP=230
 
 while (( $# > 0 ));do #{
 zis=$1;shift
@@ -22,50 +24,56 @@ $(_ "NOM")
         $myname -  $(_ "Échange de messages chiffrés basé sur") RSA.
 
 $(_ "SYNOPSIS")
-        alice_$name -h | -c | -d | -n | -l | -b | -p | -a [command args ... ]
-        bob_$name   -h | -c | -d | -n | -l
+        alice_$SUFFIX -[hcdnlbp] | -a [command args ... ]
+
+        bob_$SUFFIX   -[hcdnl]
 
 $(_ "DESCRIPTION")
         $(_ "Échange de messages chiffrés basé sur") RSA.
 
-        $(_ "Le présent script se nomme") $myname $(_ "formé du radical") "$alice" $(_ "et de") "$name" $(_ "distinctif de la clé").
+        Alice $(_ "et") Bob $(_ "sont respectivement une clé privée et sa clé publique outillées dans un script bash").
 
-        Alice $(_ "peut signer et déchiffrer"), Bob $(_ "peut vérifier et chiffrer").
+        Alice $(_ "peut signer et déchiffrer"), Bob $(_ "peut vérifier et chiffrer").  $(_ "Ils peuvent aussi se répliquer pour créer une nouvelle paire") Alice $(_ "et") Bob, $(_ "identifiée par un suffixe") $(_ "distinctif de la clé").
 
-        $(_ "Si le message est inférieur à 49 octets, le chiffré est du texte manipulable, sinon le chiffré est binaire").
+        $(_ "Le présent script se nomme") $myname $(_ "formé du radical") "$ROLE" $(_ "désignant la clé publique") $(_ "et du suffixe") "$SUFFIX" $(_ "distinctif de la clé").
+
+        $(_ "Si la longueur du message est inférieure à") $LCYP $(_ "octets, le résultat chiffré par") Bob $(_ "est du texte manipulable, sinon le chiffré est binaire").
+
+        $(_ "Si la longueur du message est inférieure à") $LSIG $(_ "octets, le résultat signé par") Alice $(_ "est du texte manipulable, sinon le chiffré est binaire").
+
 
 $(_ "OPTIONS")
         -h
             $(_ "Aide")
 
         -b
-            $(_ "Générer") Bob
+            $(_ "Générer") Bob $(_ "à partir de") Alice.
 
         -c
-            $(_ "Chiffrer ou signer l'entrée standard").
+            $(_ "Chiffrer") (Bob) $(_ "ou signer") (Alice) $(_ "l'entrée standard").
 
         -d
-            $(_ "Déchiffrer ou vérifier l'entrée standard").
+            $(_ "Vérifier") (Bob) $(_ "ou déchiffer") (Alice) $(_ "l'entrée standard").
 
             $(_ "Exemples") :
 
             $(_ "Signer un message avec") Alice $(_ "et le vérifier avec") Bob :
 
-            [message] | alice_$name -c | bob_$name -d
+            [message.out] | alice_$SUFFIX -c | bob_$SUFFIX -d
 
             $(_ "Chiffrer un message avec") Bob $(_ "et le déchiffrer avec") Alice :
 
-            [message] | bob_$name -c | alice_$name -d
+            [message.out] | bob_$SUFFIX -c | alice_$SUFFIX -d
 
         -a  [command args ...]
             $(_ "Ouvrir la clé privée") Alice $(_ "et l'utiliser dans un sous-shell sans devoir saisir à nouveau la") passphrase.
 
             $(_ "Exemple") :
 
-            alice_$name -a # passphrase $(_ "demandée")
-            alice_$name -d # passphrase $(_ "non demandée")
+            alice_$SUFFIX -a # passphrase $(_ "demandée")
+            alice_$SUFFIX -d # passphrase $(_ "non demandée")
             logout # $(_ "Sortie du sous-shell")
-            alice_$name -d # passphrase $(_ "demandée")
+            alice_$SUFFIX -d # passphrase $(_ "demandée")
 
         -l
             $(_ "Empreinte de la clé")
@@ -86,6 +94,8 @@ $(_ "STATUT FINAL")
 
 $(_ "VOIR AUSSI")
         ssh-keygen(1) openssl-pkeyutl(1) mcrypt(1)
+
+  https://github.com/tibolpol/rsa-bob-alice-in-a-simple-script
 
 $myname(1)                                            $myname(1)
 END
@@ -143,11 +153,8 @@ removepayload(){ # payload si + de 245 octets
   tail -c+16
 }
 mycryptrsa(){ # chiffrement rsa
-  if [[ $alice == alice ]]; then
-    openssl pkeyutl -sign -inkey <(echo "${ALICE_SECRET:-$(
-                  ssh-keygen -f $tmp/mykey -p -m PEM -N "" -q >/dev/null &&
-                  openssl rsa -in $tmp/mykey 2>/dev/null
-                  rm -f $tmp/mykey)}")
+  if [[ $ROLE == alice ]]; then
+    openssl pkeyutl -sign -inkey <(echo "${ALICE_SECRET:-$(myopenkey)}")
   else
     openssl pkeyutl -encrypt -pubin -inkey <(
       openssl rsa -RSAPublicKey_in -in $tmp/mykey -pubout 2>/dev/null)
@@ -156,13 +163,9 @@ mycryptrsa(){ # chiffrement rsa
 myfingerprint(){ # empreinte rsa
   ssh-keygen -l -E md5 -f <(
     ssh-keygen -i -m PEM -f <(
-    if [[ $alice == alice ]]; then
+    if [[ $ROLE == alice ]]; then
       umask u=rw,g=,o=
-      echo "${ALICE_SECRET:-$(
-        ssh-keygen -p -m PEM -N "" -q -f $tmp/mykey >/dev/null
-        openssl rsa -in $tmp/mykey 2>/dev/null
-        rm -f $tmp/mykey
-      )}">$tmp/mykey2 &&
+      echo "${ALICE_SECRET:-$(myopenkey)}">$tmp/mykey2 &&
       ssh-keygen -e -q -m PEM -f $tmp/mykey2
       rm -f $tmp/mykey2
     else
@@ -173,11 +176,8 @@ myfingerprint(){ # empreinte rsa
 }
 mydecryptrsa(){ # déchiffrement rsa
   base64 -d |
-  if [[ $alice == alice ]]; then
-    openssl pkeyutl -decrypt -inkey <(echo "${ALICE_SECRET:-$(
-                  ssh-keygen -f $tmp/mykey -p -m PEM -N "" -q >/dev/null &&
-                  openssl rsa -in $tmp/mykey 2>/dev/null
-                  rm -f $tmp/mykey)}")
+  if [[ $ROLE == alice ]]; then
+    openssl pkeyutl -decrypt -inkey <(echo "${ALICE_SECRET:-$(myopenkey)}")
   else
     openssl pkeyutl -verifyrecover -pubin -inkey <(
       openssl rsa -RSAPublicKey_in -in $tmp/mykey -pubout 2>/dev/null)
@@ -197,23 +197,28 @@ mydecrypt(){ # déchiffrement stream
     mdecrypt -q -f $1 # [246-...]
   fi
 }
+myopenkey(){
+  ssh-keygen -f $tmp/mykey -p -m PEM -N "" -q >/dev/null &&
+  openssl rsa -in $tmp/mykey 2>/dev/null
+  rm -f $tmp/mykey
+}
 
 if [[ $arg == -n ]];then # crée une nouvelle clé
 rm -f $tmp/mykey
 ssh-keygen -f $tmp/mykey -b 2048 -q -m PEM &&
-DIGEST=$(ssh-keygen -f $tmp/mykey -B | (IFS='[ -]' read P1 P2 P3 && echo $P2 )) &&
-[ ! -f $mydir/alice_$DIGEST ] &&
+SUFFIX=$(ssh-keygen -f $tmp/mykey -B | (IFS='[ -]' read P1 P2 P3 && echo $P2 )) &&
+[ ! -f $mydir/alice_$SUFFIX ] &&
 (umask u=rw,g=,o= &&
-mycopyscript $tmp/mykey < "$0" > "$mydir/alice_$DIGEST") &&
-chmod u+x   $mydir/alice_$DIGEST &&
-echo $(_ "Le script") $mydir/alice_$DIGEST $(_ "a été généré et doit rester protégé") >&2 &&
-$mydir/alice_$DIGEST -b
+mycopyscript $tmp/mykey < "$0" > "$mydir/alice_$SUFFIX") &&
+chmod u+x   $mydir/alice_$SUFFIX &&
+echo $(_ "Le script") $mydir/alice_$SUFFIX $(_ "a été généré et doit rester protégé") >&2 &&
+$mydir/alice_$SUFFIX -b
 
 elif [[ $arg == -l ]];then # empreinte de la clé
 myfingerprint
 
 elif [[ $arg == -p ]];then # changement de passphrase
-[[ $alice == bob ]] && myexit 8 "$(_ "l'opération $arg n'a pas de sens avec")" Bob
+[[ $ROLE == bob ]] && myexit 8 "$(_ "l'opération $arg n'a pas de sens avec")" Bob
 ssh-keygen -f $tmp/mykey -p -q -m PEM &&
 (umask u=rw,g=,o= &&
 mycopyscript $tmp/mykey < "$0" > "$tmp/$myname") &&
@@ -222,14 +227,10 @@ echo "$(_ "La passphrase du script") $0 $(_ "a été modifiée")" >&2 &&
 mv          $tmp/$myname $0
 
 elif [[ $arg == -b ]];then # génération de bob
-[[ $alice == bob ]] && myexit 8 "$(_ "l'opération $arg n'a pas de sens avec")" Bob
+[[ $ROLE == bob ]] && myexit 8 "$(_ "l'opération $arg n'a pas de sens avec")" Bob
 mycopyscript <(
   umask u=rw,g=,o=
-  echo "${ALICE_SECRET:-$(
-    ssh-keygen -f $tmp/mykey -p -m PEM -N "" -q >/dev/null &&
-    openssl rsa -in $tmp/mykey 2>/dev/null
-    rm -f $tmp/mykey
-  )}">$tmp/mykey2 &&
+  echo "${ALICE_SECRET:-$(myopenkey)}">$tmp/mykey2 &&
   ssh-keygen -f $tmp/mykey2 -e -q -m PEM
   rm -f $tmp/mykey2
 ) < "$0" > "${0/alice_/bob_}" &&
@@ -240,8 +241,8 @@ echo message | $0 -c | ${0/alice_/bob_} -d # sign, verify
 echo message | ${0/alice_/bob_} -c | $0 -d # encrypt, decrypt" >&2
 
 elif [[ $arg == -c ]];then # chiffrement
-echo -n "cipher for $(if [[ $alice == alice ]];then echo bob; else echo alice; fi)_${name}:"
-[[ $alice == bob ]] && lmsg=230 || lmsg=49
+echo -n "cipher for $(if [[ $ROLE == alice ]];then echo bob; else echo alice; fi)_$SUFFIX:"
+[[ $ROLE == bob ]] && lmsg=$LCYP || lmsg=$LSIG
 addpayload | (
   head -c$((lmsg+15)) |
   tee >(head -c30 > $tmp/pwd) |
@@ -259,12 +260,8 @@ read -d ':' && [[ "$REPLY" == "cipher for $myname" ]] || myexit 8 cipher $(_ "in
 ) | removepayload 
 
 elif [[ $arg == -a ]];then # agent
-[[ $alice == bob ]] && myexit 8 "$(_ "l'opération $arg n'a pas de sens avec")" Bob
-ALICE_SECRET="$(
-  ssh-keygen -f $tmp/mykey -p -m PEM -N "" -q >/dev/null &&
-  openssl rsa -in $tmp/mykey 2>/dev/null
-  rm -rf $tmp
-)" TMOUT=300 PATH="$(dirname "$0"):$PATH" "${command[@]}"
+[[ $ROLE == bob ]] && myexit 8 "$(_ "l'opération $arg n'a pas de sens avec")" Bob
+ALICE_SECRET="$(myopenkey)" TMOUT=300 PATH="$(dirname "$0"):$PATH" "${command[@]}"
 
 else
 myexit 8 $(_ "Argument $arg manquant ou incorrect")
