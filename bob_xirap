@@ -41,6 +41,8 @@ $(_ "DESCRIPTION")
 
         $(_ "Si la longueur du message est inférieure à") $LSIG $(_ "octets, le résultat signé par") Alice $(_ "est du texte manipulable, sinon le chiffré est binaire").
 
+        $(_ "Il n'y a pas de limite à la taille de l'entrée, le chiffrement ou la signature s'effectue en flux").
+
 
 $(_ "OPTIONS")
         -h
