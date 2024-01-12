@@ -85,7 +85,7 @@ $(_ "OPTIONS")
             $(_ "Générer") Alice $(_ "et") Bob $(_ "avec une nouvelle clé privée et le distinctif formé du premier mot du") digest.
 
         -u
-            $(_ "Update ce script avec la version") github master.
+            $(_ "Update ce script avec la branche") master.
 
 
 $(_ "STATUT FINAL")
@@ -208,6 +208,7 @@ mypubkey(){
 
 
 if [[ $arg == -n ]];then # crée une nouvelle clé
+[ -w "$mydir" ] || myexit 8 $(_ "Écriture impossible dans le répertoire") $mydir
 rm -f $tmp/$SUFFIX
 ssh-keygen -b 2048 -q -m PEM -f $tmp/newkey &&
 SUFFIX=$(ssh-keygen -B -f $tmp/newkey | (IFS='[ -]' read P1 P2 P3 && echo $P2 )) &&
@@ -225,23 +226,25 @@ echo message | $mydir/bob_$SUFFIX -c | $mydir/alice_$SUFFIX -d # encrypt, decryp
 
 elif [[ $arg == -b ]];then # génération de bob
 [[ $ROLE == bob ]] && myexit 8 "$(_ "l'opération $arg n'a pas de sens avec")" Bob
-mycopyscript <(mypubkey) < "$0" > $tmp/new &&
-chmod a+x $tmp/new && mv $tmp/new "${0/alice_/bob_}" &&
+[ -w "${0/alice_/bob_}" ] || myexit 8 $(_ "Écriture impossible sur le fichier") ${0/alice_/bob_}
+mycopyscript <(mypubkey) < "$0" > "${0/alice_/bob_}" && chmod a+x "${0/alice_/bob_}" &&
 echo "$(_ "Le script") ${0/alice_/bob_} $(_ "a été généré pour être distribué")
 $(_ "Exemples") :
 echo message | $0 -c | ${0/alice_/bob_} -d # sign, verify
 echo message | ${0/alice_/bob_} -c | $0 -d # encrypt, decrypt" >&2
+
 
 elif [[ $arg == -l ]];then # empreinte de la clé
 ssh-keygen -l -E md5 -f <(ssh-keygen -i -m PEM -f <(mypubkey))
 
 
 elif [[ $arg == -p ]];then # changement de passphrase
+[ -w "$0" ] || myexit 8 $(_ "Écriture impossible sur le fichier") $0
 [[ $ROLE == bob ]] && myexit 8 "$(_ "l'opération $arg n'a pas de sens avec")" Bob
 ssh-keygen -p -q -m PEM -f $tmp/$SUFFIX &&
 mycopyscript $tmp/$SUFFIX < "$0" > $tmp/new &&
 echo "$(_ "La passphrase du script") $0 $(_ "a été modifiée")" >&2 &&
-chmod --reference "$0" $tmp/new && exec mv $tmp/new "$0"
+exec cat $tmp/new > "$0"
 
 
 elif [[ $arg == -c ]];then # chiffrement
@@ -272,11 +275,12 @@ TMOUT=300 PATH="$(dirname "$0"):$PATH" "${command[@]}"
 
 
 elif [[ $arg == -u ]];then # update
+[ -w "$0" ] || myexit 8 $(_ "Écriture impossible sur le fichier") $0
 set -o pipefail &&
 wget -O - https://raw.githubusercontent.com/tibolpol/rsa-bob-alice-in-a-simple-script/master/bob_xirap |
 mycopyscript $tmp/$SUFFIX  > $tmp/new &&
 echo "$(_ "Le script") $0 $(_ "a été mis à jour")" >&2 &&
-chmod --reference "$0" $tmp/new && exec mv $tmp/new "$0"
+exec cat $tmp/new > "$0"
 
 
 else
