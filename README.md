@@ -6,9 +6,9 @@ NOM
         bob_xirap -  Échange de messages chiffrés basé sur RSA.
 
 SYNOPSIS
-        alice_xirap -[hcdnlbp] | -a [command args ... ]
+        alice_xirap -[hcdnlubp] | -a [command args ... ]
 
-        bob_xirap   -[hcdnl]
+        bob_xirap   -[hcdnlu]
 
 DESCRIPTION
         Échange de messages chiffrés basé sur RSA.
@@ -31,6 +31,9 @@ DESCRIPTION
         Si la longueur du message est inférieure à 49 octets, le
         résultat signé par Alice est du texte manipulable, sinon le
         chiffré est binaire.
+
+        Il n'y a pas de limite à la taille de l'entrée, le chiffrement
+        ou la signature s'effectue en flux.
 
 
 OPTIONS
@@ -76,6 +79,9 @@ OPTIONS
         -n
             Générer Alice et Bob avec une nouvelle clé privée et le
             distinctif formé du premier mot du digest.
+
+        -u
+            Update ce script avec la branche master.
 
 
 STATUT FINAL
