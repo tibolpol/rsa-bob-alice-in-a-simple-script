@@ -119,7 +119,7 @@ tmp=$(mktemp -d) &&
 trap 'rm -rf $tmp' EXIT
 
 (umask u=rw,g=,o=
-cat <<END >$tmp/mykey
+cat <<END >$tmp/$SUFFIX
 -----BEGIN RSA PUBLIC KEY-----
 MIIBCgKCAQEAsNoLqmZ8CfQTWUG/FhrXjHjWJ2p0eQJ7ZMFuaVQFnanQiNSM0SnU
 LyxwxzwpFNeQUQWvVhwUjywzihO71jFpbkumTmRIoVxZX6JxNjnxGW5w7gTUVAEg
@@ -154,19 +154,19 @@ removepayload(){ # payload si + de 245 octets
 }
 mycryptrsa(){ # chiffrement rsa
   if [[ $ROLE == alice ]]; then
-    openssl pkeyutl -sign -inkey <(echo "${!SUFFIX:-$(myopenkey)}")
+    openssl pkeyutl -sign -inkey <(myprivkey)
   else
     openssl pkeyutl -encrypt -pubin -inkey <(
-      openssl rsa -RSAPublicKey_in -in $tmp/mykey -pubout 2>/dev/null)
+      openssl rsa -RSAPublicKey_in -in $tmp/$SUFFIX -pubout 2>/dev/null)
   fi | base64 -w344
 }
 mydecryptrsa(){ # déchiffrement rsa
   base64 -d |
   if [[ $ROLE == alice ]]; then
-    openssl pkeyutl -decrypt -inkey <(echo "${!SUFFIX:-$(myopenkey)}")
+    openssl pkeyutl -decrypt -inkey <(myprivkey)
   else
     openssl pkeyutl -verifyrecover -pubin -inkey <(
-      openssl rsa -RSAPublicKey_in -in $tmp/mykey -pubout 2>/dev/null)
+      openssl rsa -RSAPublicKey_in -in $tmp/$SUFFIX -pubout 2>/dev/null)
   fi
 }
 mycrypt(){ # chiffrement stream
@@ -183,36 +183,40 @@ mydecrypt(){ # déchiffrement stream
     mdecrypt -q -f $1 # [246-...]
   fi
 }
-myopenkey(){
-  ssh-keygen -p -m PEM -N "" -q -f $tmp/mykey >/dev/null &&
-  openssl rsa -in $tmp/mykey 2>/dev/null
-  rm -f $tmp/mykey
+myprivkey(){
+  echo "${!SUFFIX:-$(openssl rsa -in $tmp/$SUFFIX 2>/dev/null)}"
+}
+mypubkey(){
+  if [[ $ROLE == alice ]]; then
+    umask u=rw,g=,o=
+    myprivkey >$tmp/f$SUFFIX &&
+    ssh-keygen -e -q -m PEM -f $tmp/f$SUFFIX
+    rm -f $tmp/f$SUFFIX
+  else
+    cat $tmp/$SUFFIX
+  fi
 }
 
 if [[ $arg == -n ]];then # crée une nouvelle clé
-rm -f $tmp/mykey
-ssh-keygen -b 2048 -q -m PEM -f $tmp/mykey &&
-SUFFIX=$(ssh-keygen -B -f $tmp/mykey | (IFS='[ -]' read P1 P2 P3 && echo $P2 )) &&
+rm -f $tmp/$SUFFIX
+ssh-keygen -b 2048 -q -m PEM -f $tmp/newkey &&
+SUFFIX=$(ssh-keygen -B -f $tmp/newkey | (IFS='[ -]' read P1 P2 P3 && echo $P2 )) &&
 [ ! -f $mydir/alice_$SUFFIX ] &&
 (umask u=rw,g=,o= &&
-mycopyscript $tmp/mykey < "$0" > "$mydir/alice_$SUFFIX") &&
+mycopyscript $tmp/newkey < "$0" > "$mydir/alice_$SUFFIX") &&
 chmod u+x   $mydir/alice_$SUFFIX &&
 echo $(_ "Le script") $mydir/alice_$SUFFIX $(_ "a été généré et doit rester protégé") >&2 &&
-mycopyscript <(ssh-keygen -e -q -m PEM -f $tmp/mykey.pub) < "$0" > "$mydir/bob_$SUFFIX" &&
+mycopyscript <(ssh-keygen -e -q -m PEM -f $tmp/newkey.pub) < "$0" > "$mydir/bob_$SUFFIX" &&
 chmod a+rx "$mydir/bob_$SUFFIX" &&
 echo "$(_ "Le script") $mydir/bob_$SUFFIX $(_ "a été généré pour être distribué")
 $(_ "Exemples") :
 echo message | $mydir/alice_$SUFFIX -c | $mydir/bob_$SUFFIX -d # sign, verify
 echo message | $mydir/bob_$SUFFIX -c | $mydir/alice_$SUFFIX -d # encrypt, decrypt" >&2
 
+
 elif [[ $arg == -b ]];then # génération de bob
 [[ $ROLE == bob ]] && myexit 8 "$(_ "l'opération $arg n'a pas de sens avec")" Bob
-mycopyscript <(
-  umask u=rw,g=,o=
-  echo "${!SUFFIX:-$(myopenkey)}">$tmp/mykey2 &&
-  ssh-keygen -e -q -m PEM -f $tmp/mykey2
-  rm -f $tmp/mykey2
-) < "$0" > "${0/alice_/bob_}" &&
+mycopyscript <(mypubkey) < "$0" > "${0/alice_/bob_}" &&
 chmod a+rx  ${0/alice_/bob_} &&
 echo "$(_ "Le script") ${0/alice_/bob_} $(_ "a été généré pour être distribué")
 $(_ "Exemples") :
@@ -220,27 +224,18 @@ echo message | $0 -c | ${0/alice_/bob_} -d # sign, verify
 echo message | ${0/alice_/bob_} -c | $0 -d # encrypt, decrypt" >&2
 
 elif [[ $arg == -l ]];then # empreinte de la clé
-ssh-keygen -l -E md5 -f <(
-  ssh-keygen -i -m PEM -f <(
-  if [[ $ROLE == alice ]]; then
-    umask u=rw,g=,o=
-    echo "${!SUFFIX:-$(myopenkey)}">$tmp/mykey2 &&
-    ssh-keygen -e -q -m PEM -f $tmp/mykey2
-    rm -f $tmp/mykey2
-  else
-    cat $tmp/mykey
-  fi
-  )
-)
+ssh-keygen -l -E md5 -f <(ssh-keygen -i -m PEM -f <(mypubkey))
+
 
 elif [[ $arg == -p ]];then # changement de passphrase
 [[ $ROLE == bob ]] && myexit 8 "$(_ "l'opération $arg n'a pas de sens avec")" Bob
-ssh-keygen -p -q -m PEM -f $tmp/mykey &&
+ssh-keygen -p -q -m PEM -f $tmp/$SUFFIX &&
 (umask u=rw,g=,o= &&
-mycopyscript $tmp/mykey < "$0" > "$tmp/$myname") &&
+mycopyscript $tmp/$SUFFIX < "$0" > "$tmp/$myname") &&
 chmod u+x   $tmp/$myname &&
 echo "$(_ "La passphrase du script") $0 $(_ "a été modifiée")" >&2 &&
 mv          $tmp/$myname $0
+
 
 elif [[ $arg == -c ]];then # chiffrement
 echo -n "cipher for $(if [[ $ROLE == alice ]];then echo bob; else echo alice; fi)_$SUFFIX:"
@@ -252,6 +247,7 @@ addpayload | (
   mycrypt $tmp/pwd # [246-...]
 )
 
+
 elif [[ $arg == -d ]];then # déchiffrement
 read -d ':' && [[ "$REPLY" == "cipher for $myname" ]] || myexit 8 cipher $(_ "inattendu")
 (
@@ -261,12 +257,13 @@ read -d ':' && [[ "$REPLY" == "cipher for $myname" ]] || myexit 8 cipher $(_ "in
   mydecrypt $tmp/pwd          # [246-...]
 ) | removepayload 
 
+
 elif [[ $arg == -a ]];then # agent
 [[ $ROLE == bob ]] && myexit 8 "$(_ "l'opération $arg n'a pas de sens avec")" Bob
-eval "export $SUFFIX=\"$(myopenkey)\""
+eval "export $SUFFIX=\"$(myprivkey)\""
 TMOUT=300 PATH="$(dirname "$0"):$PATH" "${command[@]}"
+
 
 else
 myexit 8 $(_ "Argument $arg manquant ou incorrect")
-
 fi
