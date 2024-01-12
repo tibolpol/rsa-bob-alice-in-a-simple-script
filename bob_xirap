@@ -24,9 +24,9 @@ $(_ "NOM")
         $myname -  $(_ "Échange de messages chiffrés basé sur") RSA.
 
 $(_ "SYNOPSIS")
-        alice_$SUFFIX -[hcdnlbp] | -a [command args ... ]
+        alice_$SUFFIX -[hcdnlubp] | -a [command args ... ]
 
-        bob_$SUFFIX   -[hcdnl]
+        bob_$SUFFIX   -[hcdnlu]
 
 $(_ "DESCRIPTION")
         $(_ "Échange de messages chiffrés basé sur") RSA.
@@ -83,6 +83,9 @@ $(_ "OPTIONS")
 
         -n
             $(_ "Générer") Alice $(_ "et") Bob $(_ "avec une nouvelle clé privée et le distinctif formé du premier mot du") digest.
+
+        -u
+            $(_ "Update ce script avec la version") github master.
 
 
 $(_ "STATUT FINAL")
@@ -209,12 +212,11 @@ rm -f $tmp/$SUFFIX
 ssh-keygen -b 2048 -q -m PEM -f $tmp/newkey &&
 SUFFIX=$(ssh-keygen -B -f $tmp/newkey | (IFS='[ -]' read P1 P2 P3 && echo $P2 )) &&
 [ ! -f $mydir/alice_$SUFFIX ] &&
-(umask u=rw,g=,o= &&
-mycopyscript $tmp/newkey < "$0" > "$mydir/alice_$SUFFIX") &&
-chmod u+x   $mydir/alice_$SUFFIX &&
+mycopyscript $tmp/newkey < "$0" > "$mydir/alice_$SUFFIX" &&
+chmod u+x,go=  $mydir/alice_$SUFFIX &&
 echo $(_ "Le script") $mydir/alice_$SUFFIX $(_ "a été généré et doit rester protégé") >&2 &&
 mycopyscript <(ssh-keygen -e -q -m PEM -f $tmp/newkey.pub) < "$0" > "$mydir/bob_$SUFFIX" &&
-chmod a+rx "$mydir/bob_$SUFFIX" &&
+chmod a+x "$mydir/bob_$SUFFIX" &&
 echo "$(_ "Le script") $mydir/bob_$SUFFIX $(_ "a été généré pour être distribué")
 $(_ "Exemples") :
 echo message | $mydir/alice_$SUFFIX -c | $mydir/bob_$SUFFIX -d # sign, verify
@@ -224,7 +226,7 @@ echo message | $mydir/bob_$SUFFIX -c | $mydir/alice_$SUFFIX -d # encrypt, decryp
 elif [[ $arg == -b ]];then # génération de bob
 [[ $ROLE == bob ]] && myexit 8 "$(_ "l'opération $arg n'a pas de sens avec")" Bob
 mycopyscript <(mypubkey) < "$0" > $tmp/new &&
-chmod a+rx  $tmp/new && mv $tmp/new "${0/alice_/bob_}" &&
+chmod a+x $tmp/new && mv $tmp/new "${0/alice_/bob_}" &&
 echo "$(_ "Le script") ${0/alice_/bob_} $(_ "a été généré pour être distribué")
 $(_ "Exemples") :
 echo message | $0 -c | ${0/alice_/bob_} -d # sign, verify
@@ -237,11 +239,9 @@ ssh-keygen -l -E md5 -f <(ssh-keygen -i -m PEM -f <(mypubkey))
 elif [[ $arg == -p ]];then # changement de passphrase
 [[ $ROLE == bob ]] && myexit 8 "$(_ "l'opération $arg n'a pas de sens avec")" Bob
 ssh-keygen -p -q -m PEM -f $tmp/$SUFFIX &&
-(umask u=rw,g=,o= &&
-mycopyscript $tmp/$SUFFIX < "$0" > "$tmp/$myname") &&
-chmod u+x   $tmp/$myname &&
+mycopyscript $tmp/$SUFFIX < "$0" > $tmp/new &&
 echo "$(_ "La passphrase du script") $0 $(_ "a été modifiée")" >&2 &&
-mv          $tmp/$myname $0
+chmod --reference "$0" $tmp/new && exec mv $tmp/new "$0"
 
 
 elif [[ $arg == -c ]];then # chiffrement
@@ -269,6 +269,14 @@ elif [[ $arg == -a ]];then # agent
 [[ $ROLE == bob ]] && myexit 8 "$(_ "l'opération $arg n'a pas de sens avec")" Bob
 eval "export $SUFFIX=\"$(myprivkey)\""
 TMOUT=300 PATH="$(dirname "$0"):$PATH" "${command[@]}"
+
+
+elif [[ $arg == -u ]];then # update
+set -o pipefail &&
+wget -O - https://raw.githubusercontent.com/tibolpol/rsa-bob-alice-in-a-simple-script/master/bob_xirap |
+mycopyscript $tmp/$SUFFIX  > $tmp/new &&
+echo "$(_ "Le script") $0 $(_ "a été mis à jour")" >&2 &&
+chmod --reference "$0" $tmp/new && exec mv $tmp/new "$0"
 
 
 else

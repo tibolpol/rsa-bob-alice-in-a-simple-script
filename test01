@@ -4,7 +4,9 @@ mydir="$(dirname "$0")"
 (
 "$mydir/bob_xirap" -h
 "$mydir/bob_xirap" -l
-) | diff "$0.out.1" - &&
+) |
+tee /tmp/aa |
+diff "$0.out.1" - &&
 echo $0.1 OK || echo $0.1 KO
 
 tmp=$(mktemp -d)
