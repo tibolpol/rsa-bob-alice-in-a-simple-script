@@ -184,7 +184,13 @@ mydecrypt(){ # déchiffrement stream
   fi
 }
 myprivkey(){
-  echo "${!SUFFIX:-$(openssl rsa -in $tmp/$SUFFIX 2>/dev/null)}"
+  echo "${!SUFFIX:-$(
+    if [[ $SSH_ASKPASS_REQUIRE == force ]] && [ -n "$SSH_ASKPASS" ] ; then
+      (openssl rsa -passin fd:$fdi -in $tmp/$SUFFIX 2>/dev/null) {fdi}< <($SSH_ASKPASS)
+    else
+      openssl rsa -in $tmp/$SUFFIX 2>/dev/null
+    fi
+  )}"
 }
 mypubkey(){
   if [[ $ROLE == alice ]]; then
@@ -196,6 +202,7 @@ mypubkey(){
     cat $tmp/$SUFFIX
   fi
 }
+
 
 if [[ $arg == -n ]];then # crée une nouvelle clé
 rm -f $tmp/$SUFFIX

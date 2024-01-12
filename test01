@@ -61,16 +61,16 @@ diff "$0.out.9" - &&
 echo $0.9 OK || echo $0.9 KO
 
 SSH_ASKPASS_REQUIRE=force SSH_ASKPASS=${0}askpass $tmp/alice$_xixix -p |&
-sed -e "s|$tmp/|\$tmp/|g" -e "s|\([bobalice]*\)_x[a-z]\{4\}|\1_xixix|g" |
+sed -e "s|$tmp/|\$tmp/|g" -e "s/\(bob\|alice\)_x[a-z]\{4\}/\1_xixix/g" |
 diff "$0.out.10" - &&
 echo $0.10 OK || echo $0.10 KO
 
 SSH_ASKPASS_REQUIRE=force SSH_ASKPASS=${0}askpass _xixix=$_xixix $tmp/alice$_xixix -a ${0}sub |&
-sed -e "s|$tmp/|\$tmp/|g" -e "s|\([bobalice]*\)_x[a-z]\{4\}|\1_xixix|g" |
+sed -e "s|$tmp/|\$tmp/|g" -e "s/\(bob\|alice\)_x[a-z]\{4\}/\1_xixix/g" |
 diff $0.out.11 - &&
 echo $0.11 OK || echo $0.11 KO
 
-SSH_ASKPASS_REQUIRE=force SSH_ASKPASS=false PATH="$PATH:$tmp" _xixix=$_xixix ${0}sub |
-sed -e "s|$tmp/|\$tmp/|g" -e "s|\([bobalice]*\)_x[a-z]\{4\}|\1_xixix|g" |
+SSH_ASKPASS_REQUIRE=force SSH_ASKPASS=false PATH="$PATH:$tmp" _xixix=$_xixix ${0}sub 2>/dev/null |
+sed -e "s|$tmp/|\$tmp/|g" -e "s/\(bob\|alice\)_x[a-z]\{4\}/\1_xixix/g" |
 diff $0.out.12 - &&
 echo $0.12 OK || echo $0.12 KO
