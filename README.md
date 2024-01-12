@@ -6,42 +6,55 @@ NOM
         bob_xirap -  Échange de messages chiffrés basé sur RSA.
 
 SYNOPSIS
-        alice_xirap -h | -c | -d | -n | -l | -b | -p | -a [command args ... ]
-        bob_xirap   -h | -c | -d | -n | -l
+        alice_xirap -[hcdnlbp] | -a [command args ... ]
+
+        bob_xirap   -[hcdnl]
 
 DESCRIPTION
         Échange de messages chiffrés basé sur RSA.
 
-        Le présent script se nomme bob_xirap formé du radical "bob"
-        et de "xirap" distinctif de la clé.
+        Alice et Bob sont respectivement une clé privée et sa clé
+        publique outillées dans un script bash.
 
         Alice peut signer et déchiffrer, Bob peut vérifier et chiffrer.
+        Ils peuvent aussi se répliquer pour créer une nouvelle paire
+        Alice et Bob, identifiée par un suffixe distinctif de la clé.
 
-        Si le message est inférieur à 49 octets, le chiffré est du
-        texte manipulable, sinon le chiffré est binaire.
+        Le présent script se nomme bob_xirap formé du radical "bob"
+        désignant la clé publique et du suffixe "xirap" distinctif de
+        la clé.
+
+        Si la longueur du message est inférieure à 230 octets, le
+        résultat chiffré par Bob est du texte manipulable, sinon le
+        chiffré est binaire.
+
+        Si la longueur du message est inférieure à 49 octets, le
+        résultat signé par Alice est du texte manipulable, sinon le
+        chiffré est binaire.
+
 
 OPTIONS
         -h
             Aide
 
         -b
-            Générer Bob
+            Générer Bob à partir de Alice.
 
         -c
-            Chiffrer ou signer l'entrée standard.
+            Chiffrer (Bob) ou signer (Alice) l'entrée standard.
 
         -d
-            Déchiffrer ou vérifier l'entrée standard.
+            Vérifier (Bob) ou déchiffer (Alice) l'entrée standard.
 
             Exemples :
 
             Signer un message avec Alice et le vérifier avec Bob :
 
-            [message] | alice_xirap -c | bob_xirap -d
+            [message.out] | alice_xirap -c | bob_xirap -d
 
             Chiffrer un message avec Bob et le déchiffrer avec Alice :
 
-            [message] | bob_xirap -c | alice_xirap -d
+            [message.out] | bob_xirap -c | alice_xirap -d
 
         -a  [command args ...]
             Ouvrir la clé privée Alice et l'utiliser dans un sous-shell

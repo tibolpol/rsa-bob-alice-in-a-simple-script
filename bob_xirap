@@ -154,30 +154,16 @@ removepayload(){ # payload si + de 245 octets
 }
 mycryptrsa(){ # chiffrement rsa
   if [[ $ROLE == alice ]]; then
-    openssl pkeyutl -sign -inkey <(echo "${ALICE_SECRET:-$(myopenkey)}")
+    openssl pkeyutl -sign -inkey <(echo "${!SUFFIX:-$(myopenkey)}")
   else
     openssl pkeyutl -encrypt -pubin -inkey <(
       openssl rsa -RSAPublicKey_in -in $tmp/mykey -pubout 2>/dev/null)
   fi | base64 -w344
 }
-myfingerprint(){ # empreinte rsa
-  ssh-keygen -l -E md5 -f <(
-    ssh-keygen -i -m PEM -f <(
-    if [[ $ROLE == alice ]]; then
-      umask u=rw,g=,o=
-      echo "${ALICE_SECRET:-$(myopenkey)}">$tmp/mykey2 &&
-      ssh-keygen -e -q -m PEM -f $tmp/mykey2
-      rm -f $tmp/mykey2
-    else
-      cat $tmp/mykey
-    fi
-    )
-  )
-}
 mydecryptrsa(){ # déchiffrement rsa
   base64 -d |
   if [[ $ROLE == alice ]]; then
-    openssl pkeyutl -decrypt -inkey <(echo "${ALICE_SECRET:-$(myopenkey)}")
+    openssl pkeyutl -decrypt -inkey <(echo "${!SUFFIX:-$(myopenkey)}")
   else
     openssl pkeyutl -verifyrecover -pubin -inkey <(
       openssl rsa -RSAPublicKey_in -in $tmp/mykey -pubout 2>/dev/null)
@@ -198,40 +184,33 @@ mydecrypt(){ # déchiffrement stream
   fi
 }
 myopenkey(){
-  ssh-keygen -f $tmp/mykey -p -m PEM -N "" -q >/dev/null &&
+  ssh-keygen -p -m PEM -N "" -q -f $tmp/mykey >/dev/null &&
   openssl rsa -in $tmp/mykey 2>/dev/null
   rm -f $tmp/mykey
 }
 
 if [[ $arg == -n ]];then # crée une nouvelle clé
 rm -f $tmp/mykey
-ssh-keygen -f $tmp/mykey -b 2048 -q -m PEM &&
-SUFFIX=$(ssh-keygen -f $tmp/mykey -B | (IFS='[ -]' read P1 P2 P3 && echo $P2 )) &&
+ssh-keygen -b 2048 -q -m PEM -f $tmp/mykey &&
+SUFFIX=$(ssh-keygen -B -f $tmp/mykey | (IFS='[ -]' read P1 P2 P3 && echo $P2 )) &&
 [ ! -f $mydir/alice_$SUFFIX ] &&
 (umask u=rw,g=,o= &&
 mycopyscript $tmp/mykey < "$0" > "$mydir/alice_$SUFFIX") &&
 chmod u+x   $mydir/alice_$SUFFIX &&
 echo $(_ "Le script") $mydir/alice_$SUFFIX $(_ "a été généré et doit rester protégé") >&2 &&
-$mydir/alice_$SUFFIX -b
-
-elif [[ $arg == -l ]];then # empreinte de la clé
-myfingerprint
-
-elif [[ $arg == -p ]];then # changement de passphrase
-[[ $ROLE == bob ]] && myexit 8 "$(_ "l'opération $arg n'a pas de sens avec")" Bob
-ssh-keygen -f $tmp/mykey -p -q -m PEM &&
-(umask u=rw,g=,o= &&
-mycopyscript $tmp/mykey < "$0" > "$tmp/$myname") &&
-chmod u+x   $tmp/$myname &&
-echo "$(_ "La passphrase du script") $0 $(_ "a été modifiée")" >&2 &&
-mv          $tmp/$myname $0
+mycopyscript <(ssh-keygen -e -q -m PEM -f $tmp/mykey.pub) < "$0" > "$mydir/bob_$SUFFIX" &&
+chmod a+rx "$mydir/bob_$SUFFIX" &&
+echo "$(_ "Le script") $mydir/bob_$SUFFIX $(_ "a été généré pour être distribué")
+$(_ "Exemples") :
+echo message | $mydir/alice_$SUFFIX -c | $mydir/bob_$SUFFIX -d # sign, verify
+echo message | $mydir/bob_$SUFFIX -c | $mydir/alice_$SUFFIX -d # encrypt, decrypt" >&2
 
 elif [[ $arg == -b ]];then # génération de bob
 [[ $ROLE == bob ]] && myexit 8 "$(_ "l'opération $arg n'a pas de sens avec")" Bob
 mycopyscript <(
   umask u=rw,g=,o=
-  echo "${ALICE_SECRET:-$(myopenkey)}">$tmp/mykey2 &&
-  ssh-keygen -f $tmp/mykey2 -e -q -m PEM
+  echo "${!SUFFIX:-$(myopenkey)}">$tmp/mykey2 &&
+  ssh-keygen -e -q -m PEM -f $tmp/mykey2
   rm -f $tmp/mykey2
 ) < "$0" > "${0/alice_/bob_}" &&
 chmod a+rx  ${0/alice_/bob_} &&
@@ -239,6 +218,29 @@ echo "$(_ "Le script") ${0/alice_/bob_} $(_ "a été généré pour être distri
 $(_ "Exemples") :
 echo message | $0 -c | ${0/alice_/bob_} -d # sign, verify
 echo message | ${0/alice_/bob_} -c | $0 -d # encrypt, decrypt" >&2
+
+elif [[ $arg == -l ]];then # empreinte de la clé
+ssh-keygen -l -E md5 -f <(
+  ssh-keygen -i -m PEM -f <(
+  if [[ $ROLE == alice ]]; then
+    umask u=rw,g=,o=
+    echo "${!SUFFIX:-$(myopenkey)}">$tmp/mykey2 &&
+    ssh-keygen -e -q -m PEM -f $tmp/mykey2
+    rm -f $tmp/mykey2
+  else
+    cat $tmp/mykey
+  fi
+  )
+)
+
+elif [[ $arg == -p ]];then # changement de passphrase
+[[ $ROLE == bob ]] && myexit 8 "$(_ "l'opération $arg n'a pas de sens avec")" Bob
+ssh-keygen -p -q -m PEM -f $tmp/mykey &&
+(umask u=rw,g=,o= &&
+mycopyscript $tmp/mykey < "$0" > "$tmp/$myname") &&
+chmod u+x   $tmp/$myname &&
+echo "$(_ "La passphrase du script") $0 $(_ "a été modifiée")" >&2 &&
+mv          $tmp/$myname $0
 
 elif [[ $arg == -c ]];then # chiffrement
 echo -n "cipher for $(if [[ $ROLE == alice ]];then echo bob; else echo alice; fi)_$SUFFIX:"
@@ -261,7 +263,8 @@ read -d ':' && [[ "$REPLY" == "cipher for $myname" ]] || myexit 8 cipher $(_ "in
 
 elif [[ $arg == -a ]];then # agent
 [[ $ROLE == bob ]] && myexit 8 "$(_ "l'opération $arg n'a pas de sens avec")" Bob
-ALICE_SECRET="$(myopenkey)" TMOUT=300 PATH="$(dirname "$0"):$PATH" "${command[@]}"
+eval "export $SUFFIX=\"$(myopenkey)\""
+TMOUT=300 PATH="$(dirname "$0"):$PATH" "${command[@]}"
 
 else
 myexit 8 $(_ "Argument $arg manquant ou incorrect")
