@@ -223,8 +223,8 @@ echo message | $mydir/bob_$SUFFIX -c | $mydir/alice_$SUFFIX -d # encrypt, decryp
 
 elif [[ $arg == -b ]];then # génération de bob
 [[ $ROLE == bob ]] && myexit 8 "$(_ "l'opération $arg n'a pas de sens avec")" Bob
-mycopyscript <(mypubkey) < "$0" > "${0/alice_/bob_}" &&
-chmod a+rx  ${0/alice_/bob_} &&
+mycopyscript <(mypubkey) < "$0" > $tmp/new &&
+chmod a+rx  $tmp/new && mv $tmp/new "${0/alice_/bob_}" &&
 echo "$(_ "Le script") ${0/alice_/bob_} $(_ "a été généré pour être distribué")
 $(_ "Exemples") :
 echo message | $0 -c | ${0/alice_/bob_} -d # sign, verify

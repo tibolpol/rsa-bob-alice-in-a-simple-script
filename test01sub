@@ -9,3 +9,8 @@ bob$_xixix -b 2>&1
 bob$_xixix -p 2>&1
 
 bob$_xixix -a 2>&1
+
+diff -q <(
+   bob$_xixix -l | tee >(wc -c >&2) ) <(
+ alice$_xixix -l | tee >(wc -c >&2) )
+echo diff rc=$?

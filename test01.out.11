@@ -7,3 +7,6 @@ echo message | $tmp/bob_xixix -c | $tmp/alice_xixix -d # encrypt, decrypt
 bob_xixix rc=8 - l'opération -b n'a pas de sens avec Bob
 bob_xixix rc=8 - l'opération -p n'a pas de sens avec Bob
 bob_xixix rc=8 - l'opération -a n'a pas de sens avec Bob
+74
+74
+diff rc=0
