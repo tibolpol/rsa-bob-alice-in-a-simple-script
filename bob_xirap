@@ -138,7 +138,7 @@ br00rhMhZ8YQbyvG4UttNSWiJKQUcNGgaQIDAQAB
 END
 )
 
-mycopyscript(){
+mycopyscript(){ # merge script + key
   awk '
   $1" "$4 == "-----BEGIN KEY-----" {sta=1}
   $1" "$4 == "-----END KEY-----" {
@@ -152,11 +152,11 @@ mycopyscript(){
   sta == 0{print}
   END{exit(numlines==0)}'
 }
-addpayload() {
+addpayload() { # append data to payload
   printf "%5d%5d%5d" $RANDOM $RANDOM $RANDOM # payload
   cat
 }
-removepayload(){ # payload si + de 245 octets
+removepayload(){ # separate data from payload
   tail -c+16
 }
 mycryptrsa(){ # chiffrement rsa
@@ -190,7 +190,7 @@ mydecrypt(){ # déchiffrement stream
     mdecrypt -q -f $1 # [246-...]
   fi
 }
-myprivkey(){
+myprivkey(){ # private key
   echo "${!SUFFIX:-$(
     if [[ $SSH_ASKPASS_REQUIRE == force ]] && [ -n "$SSH_ASKPASS" ] ; then
       (openssl rsa -passin fd:$fdi -in $tmp/$SUFFIX 2>/dev/null) {fdi}< <($SSH_ASKPASS)
@@ -199,7 +199,7 @@ myprivkey(){
     fi
   )}"
 }
-mypubkey(){
+mypubkey(){ # public key
   if [[ $ROLE == alice ]]; then
     umask u=rw,g=,o=
     myprivkey >$tmp/f$SUFFIX &&
@@ -264,8 +264,7 @@ addpayload | (
 
 elif [[ $arg == -d ]];then # déchiffrement
 read -d ':' && [[ "$REPLY" == "cipher for $myname" ]] || myexit 8 cipher $(_ "inattendu")
-(
-  head -c345 |
+( head -c345 |
   mydecryptrsa |
   tee >(head -c30 > $tmp/pwd) # [1-245]
   mydecrypt $tmp/pwd          # [246-...]
