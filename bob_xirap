@@ -43,6 +43,8 @@ $(_ "DESCRIPTION")
 
         $(_ "Il n'y a pas de limite à la taille de l'entrée, le chiffrement ou la signature s'effectue en flux").
 
+        $(_ "Le chiffrement ne provoque pas d'inflation du flux"). $(_ "La compression du flux chiffré est inefficace, contrairement au chiffrement du flux compressé").
+
 
 $(_ "OPTIONS")
         -h
@@ -267,7 +269,7 @@ read -d ':' && [[ "$REPLY" == "cipher for $myname" ]] || myexit 8 cipher $(_ "in
   mydecryptrsa |
   tee >(head -c30 > $tmp/pwd) # [1-245]
   mydecrypt $tmp/pwd          # [246-...]
-) | removepayload 
+) | removepayload
 
 
 elif [[ $arg == -a ]];then # agent

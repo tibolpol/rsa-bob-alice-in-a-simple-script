@@ -35,6 +35,10 @@ DESCRIPTION
         Il n'y a pas de limite à la taille de l'entrée, le chiffrement
         ou la signature s'effectue en flux.
 
+        Le chiffrement ne provoque pas d'inflation du flux. La compression
+        du flux chiffré est inefficace, contrairement au chiffrement
+        du flux compressé.
+
 
 OPTIONS
         -h
