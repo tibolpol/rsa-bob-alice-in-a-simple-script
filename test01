@@ -1,6 +1,29 @@
 #!/bin/bash
-
+mycopyhelp(){
+  awk '
+  $0 == "```" && !sta {
+    sta = 1
+    print
+    next
+  }
+  $0 == "```" &&  sta {
+    sta = 0
+    line = $0
+    while (getline < "'$1'") {
+      print
+      numlines++
+    }
+    print line
+    next
+  }
+  sta == 0 { print }
+  END { exit(numlines==0) }'
+}
 mydir="$(dirname "$0")"
+
+mycopyhelp <("$mydir/bob_xirap" -h) < "$mydir/README.md" > "$mydir/README.md~" &&
+mv "$mydir/README.md~" "$mydir/README.md"
+
 (
 "$mydir/bob_xirap" -h
 "$mydir/bob_xirap" -l

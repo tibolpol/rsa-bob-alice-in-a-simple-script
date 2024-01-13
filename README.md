@@ -101,7 +101,6 @@ VOIR AUSSI
   https://github.com/tibolpol/rsa-bob-alice-in-a-simple-script
 
 bob_xirap(1)                                            bob_xirap(1)
-                                            bob_xirap(1)
 ```
 # Mode d'emploi
 
