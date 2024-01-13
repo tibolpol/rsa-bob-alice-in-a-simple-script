@@ -25,12 +25,12 @@ DESCRIPTION
         la clé.
 
         Si la longueur du message est inférieure à 230 octets, le
-        résultat chiffré par Bob est du texte manipulable, sinon le
-        chiffré est binaire.
+        résultat chiffré par Bob est un texte de 367 octets, au-delà
+        le chiffré est un flux binaire.
 
         Si la longueur du message est inférieure à 49 octets, le
-        résultat signé par Alice est du texte manipulable, sinon le
-        chiffré est binaire.
+        résultat signé par Alice est un texte de 365 octets, au-delà
+        le chiffré est un flux binaire.
 
         Il n'y a pas de limite à la taille de l'entrée, le chiffrement
         ou la signature s'effectue en flux.
@@ -101,6 +101,7 @@ VOIR AUSSI
   https://github.com/tibolpol/rsa-bob-alice-in-a-simple-script
 
 bob_xirap(1)                                            bob_xirap(1)
+                                            bob_xirap(1)
 ```
 # Mode d'emploi
 
